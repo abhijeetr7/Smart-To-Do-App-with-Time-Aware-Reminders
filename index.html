@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart To-Do App</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* Custom styles for Inter font and general body styling */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Light blue-gray background */
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* Align to top to prevent content from being squished */
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        /* Custom scrollbar for task list */
+        #taskList::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #taskList::-webkit-scrollbar-track {
+            background: #e2e8f0; /* Light gray */
+            border-radius: 10px;
+        }
+
+        #taskList::-webkit-scrollbar-thumb {
+            background: #94a3b8; /* Medium gray */
+            border-radius: 10px;
+        }
+
+        #taskList::-webkit-scrollbar-thumb:hover {
+            background: #64748b; /* Darker gray on hover */
+        }
+
+        /* Specific styles for notification permission message */
+        #notificationPermissionMessage {
+            display: none; /* Hidden by default */
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 10px;
+            color: white;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body class="antialiased">
+    <div id="notificationPermissionMessage" class="p-6 bg-gray-800 text-white rounded-lg shadow-xl max-w-sm mx-auto">
+        <p class="mb-4">This app uses browser notifications to remind you about tasks. Please allow notifications for the best experience.</p>
+        <button id="requestNotificationPermission" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition duration-300">Enable Notifications</button>
+    </div>
+
+    <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-3xl border border-gray-200">
+        <h1 class="text-4xl font-extrabold text-center text-gray-800 mb-8">
+            <i class="fas fa-check-circle text-blue-500 mr-3"></i>Smart To-Do
+        </h1>
+
+        <!-- Task Input Form -->
+        <form id="taskForm" class="mb-8 p-6 bg-gray-50 rounded-lg shadow-inner">
+            <input type="hidden" id="taskId">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label for="taskName" class="block text-sm font-medium text-gray-700 mb-1">Task Name</label>
+                    <input type="text" id="taskName" placeholder="e.g., Finish project report" required
+                           class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-200 shadow-sm">
+                </div>
+                <div>
+                    <label for="taskDeadline" class="block text-sm font-medium text-gray-700 mb-1">Deadline</label>
+                    <input type="datetime-local" id="taskDeadline" required
+                           class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-200 shadow-sm">
+                </div>
+                <div>
+                    <label for="taskPriority" class="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                    <select id="taskPriority"
+                            class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-200 shadow-sm">
+                        <option value="high">High</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="low">Low</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="taskCategory" class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                    <input type="text" id="taskCategory" placeholder="e.g., Work, Personal"
+                           class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-200 shadow-sm">
+                </div>
+            </div>
+            <button type="submit" id="addTaskButton"
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 shadow-md">
+                <i class="fas fa-plus-circle mr-2"></i>Add Task
+            </button>
+        </form>
+
+        <!-- Sorting and Filters -->
+        <div class="mb-6 flex flex-wrap justify-center gap-3">
+            <button id="sortByPriority"
+                    class="flex-1 min-w-[120px] bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg transition duration-300 ease-in-out shadow-sm">
+                <i class="fas fa-sort-amount-down-alt mr-2"></i>Sort by Priority
+            </button>
+            <button id="sortByCategory"
+                    class="flex-1 min-w-[120px] bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg transition duration-300 ease-in-out shadow-sm">
+                <i class="fas fa-tags mr-2"></i>Sort by Category
+            </button>
+            <button id="sortByDueDate"
+                    class="flex-1 min-w-[120px] bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg transition duration-300 ease-in-out shadow-sm">
+                <i class="fas fa-calendar-alt mr-2"></i>Sort by Due Date
+            </button>
+        </div>
+
+        <!-- Task List -->
+        <div id="taskList" class="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+            <!-- Tasks will be rendered here -->
+            <p class="text-center text-gray-500 py-8" id="noTasksMessage">No tasks yet! Add one above.</p>
+        </div>
+    </div>
+
+    <script>
+        // Global array to store tasks
+        let tasks = [];
+        // Interval ID for deadline checking
+        let deadlineCheckInterval;
+
+        // DOM Elements
+        const taskForm = document.getElementById('taskForm');
+        const taskIdInput = document.getElementById('taskId');
+        const taskNameInput = document.getElementById('taskName');
+        const taskDeadlineInput = document.getElementById('taskDeadline');
+        const taskPriorityInput = document.getElementById('taskPriority');
+        const taskCategoryInput = document.getElementById('taskCategory');
+        const addTaskButton = document.getElementById('addTaskButton');
+        const taskListDiv = document.getElementById('taskList');
+        const noTasksMessage = document.getElementById('noTasksMessage');
+
+        const sortByPriorityButton = document.getElementById('sortByPriority');
+        const sortByCategoryButton = document.getElementById('sortByCategory');
+        const sortByDueDateButton = document.getElementById('sortByDueDate');
+
+        const notificationPermissionMessage = document.getElementById('notificationPermissionMessage');
+        const requestNotificationPermissionButton = document.getElementById('requestNotificationPermission');
+
+        // --- Utility Functions ---
+
+        /**
+         * Saves the current tasks array to local storage.
+         */
+        function saveTasks() {
+            localStorage.setItem('smartTodoTasks', JSON.stringify(tasks));
+            renderTasks(); // Re-render tasks after saving to reflect any changes (e.g., sorting)
+        }
+
+        /**
+         * Loads tasks from local storage.
+         */
+        function loadTasks() {
+            const storedTasks = localStorage.getItem('smartTodoTasks');
+            if (storedTasks) {
+                tasks = JSON.parse(storedTasks);
+                // Ensure deadline is a Date object and add 'notified' flag if missing
+                tasks.forEach(task => {
+                    task.deadline = new Date(task.deadline);
+                    if (typeof task.notified === 'undefined') {
+                        task.notified = false;
+                    }
+                    if (typeof task.completed === 'undefined') {
+                        task.completed = false;
+                    }
+                });
+            }
+        }
+
+        /**
+         * Formats a Date object into a readable string.
+         * @param {Date} date - The date to format.
+         * @returns {string} Formatted date string.
+         */
+        function formatDate(date) {
+            if (!date) return 'No deadline';
+            const options = {
+                year: 'numeric', month: 'short', day: 'numeric',
+                hour: '2-digit', minute: '2-digit', hour12: true
+            };
+            return new Intl.DateTimeFormat('en-US', options).format(date);
+        }
+
+        /**
+         * Requests notification permission from the user.
+         */
+        function requestNotificationPermission() {
+            if (!("Notification" in window)) {
+                console.log("This browser does not support desktop notification");
+                notificationPermissionMessage.style.display = 'none'; // Hide message if not supported
+                return;
+            }
+
+            if (Notification.permission === "granted") {
+                console.log("Notification permission already granted.");
+                notificationPermissionMessage.style.display = 'none'; // Hide message if already granted
+            } else if (Notification.permission === "denied") {
+                console.warn("Notification permission denied. Please enable it in your browser settings.");
+                notificationPermissionMessage.style.display = 'none'; // Hide message, user has explicitly denied
+            } else {
+                // Request permission
+                notificationPermissionMessage.style.display = 'block'; // Show the prompt
+                requestNotificationPermissionButton.onclick = () => {
+                    Notification.requestPermission().then(permission => {
+                        notificationPermissionMessage.style.display = 'none'; // Hide message after interaction
+                        if (permission === "granted") {
+                            console.log("Notification permission granted.");
+                            // You can show a welcome notification here if desired
+                        } else {
+                            console.warn("Notification permission denied by user.");
+                        }
+                    });
+                };
+            }
+        }
+
+        /**
+         * Displays a browser notification.
+         * @param {string} title - The title of the notification.
+         * @param {object} options - Options for the notification (e.g., body, icon).
+         */
+        function showNotification(title, options) {
+            if (Notification.permission === "granted") {
+                new Notification(title, options);
+            } else {
+                console.warn("Cannot show notification: permission not granted.");
+            }
+        }
+
+        // --- Task Management Functions ---
+
+        /**
+         * Adds a new task or updates an existing one.
+         * @param {Event} event - The form submission event.
+         */
+        function handleTaskFormSubmit(event) {
+            event.preventDefault();
+
+            const id = taskIdInput.value;
+            const name = taskNameInput.value.trim();
+            const deadline = new Date(taskDeadlineInput.value);
+            const priority = taskPriorityInput.value;
+            const category = taskCategoryInput.value.trim();
+            const completed = false; // New tasks are not completed
+
+            if (!name || !taskDeadlineInput.value) {
+                // Simple validation feedback
+                taskNameInput.classList.add('border-red-500');
+                taskDeadlineInput.classList.add('border-red-500');
+                return;
+            } else {
+                taskNameInput.classList.remove('border-red-500');
+                taskDeadlineInput.classList.remove('border-red-500');
+            }
+
+            if (id) {
+                // Edit existing task
+                const taskIndex = tasks.findIndex(task => task.id === id);
+                if (taskIndex > -1) {
+                    tasks[taskIndex] = { ...tasks[taskIndex], name, deadline, priority, category, notified: false }; // Reset notified on edit
+                }
+                addTaskButton.innerHTML = '<i class="fas fa-plus-circle mr-2"></i>Add Task';
+            } else {
+                // Add new task
+                const newTask = {
+                    id: crypto.randomUUID(),
+                    name,
+                    deadline,
+                    priority,
+                    category,
+                    completed,
+                    notified: false // Flag to prevent repeated notifications
+                };
+                tasks.push(newTask);
+            }
+
+            taskForm.reset(); // Clear the form
+            taskIdInput.value = ''; // Clear hidden ID
+            saveTasks(); // Save and re-render
+        }
+
+        /**
+         * Populates the form for editing a task.
+         * @param {string} id - The ID of the task to edit.
+         */
+        function editTask(id) {
+            const task = tasks.find(t => t.id === id);
+            if (task) {
+                taskIdInput.value = task.id;
+                taskNameInput.value = task.name;
+                // Format deadline for datetime-local input
+                const formattedDeadline = task.deadline.toISOString().slice(0, 16);
+                taskDeadlineInput.value = formattedDeadline;
+                taskPriorityInput.value = task.priority;
+                taskCategoryInput.value = task.category;
+                addTaskButton.innerHTML = '<i class="fas fa-save mr-2"></i>Update Task';
+            }
+        }
+
+        /**
+         * Deletes a task from the list.
+         * @param {string} id - The ID of the task to delete.
+         */
+        function deleteTask(id) {
+            tasks = tasks.filter(task => task.id !== id);
+            saveTasks();
+        }
+
+        /**
+         * Toggles the completed status of a task.
+         * @param {string} id - The ID of the task to toggle.
+         */
+        function toggleTaskCompleted(id) {
+            const taskIndex = tasks.findIndex(task => task.id === id);
+            if (taskIndex > -1) {
+                tasks[taskIndex].completed = !tasks[taskIndex].completed;
+                saveTasks();
+            }
+        }
+
+        // --- Rendering Functions ---
+
+        /**
+         * Renders all tasks to the DOM.
+         */
+        function renderTasks() {
+            taskListDiv.innerHTML = ''; // Clear current list
+
+            if (tasks.length === 0) {
+                noTasksMessage.style.display = 'block';
+                return;
+            } else {
+                noTasksMessage.style.display = 'none';
+            }
+
+            // Sort tasks before rendering based on current state (if any sorting applied)
+            // Or apply default sorting (e.g., by deadline) if no explicit sort button was clicked recently.
+            // For now, let's assume `tasks` array is already sorted by the sort functions.
+
+            tasks.forEach(task => {
+                const now = new Date();
+                const timeLeft = task.deadline.getTime() - now.getTime(); // Time left in milliseconds
+                const oneHour = 60 * 60 * 1000; // 1 hour in milliseconds
+
+                let statusClass = '';
+                let statusText = '';
+                let icon = '';
+
+                if (task.completed) {
+                    statusClass = 'bg-green-100 border-green-400';
+                    statusText = 'Completed';
+                    icon = '<i class="fas fa-check-circle text-green-500"></i>';
+                } else if (timeLeft < 0) {
+                    statusClass = 'bg-red-100 border-red-400';
+                    statusText = 'Overdue';
+                    icon = '<i class="fas fa-exclamation-circle text-red-500"></i>';
+                } else if (timeLeft < oneHour) {
+                    statusClass = 'bg-yellow-100 border-yellow-400';
+                    statusText = 'Due Soon';
+                    icon = '<i class="fas fa-hourglass-half text-yellow-500"></i>';
+                } else {
+                    statusClass = 'bg-blue-50 border-blue-200';
+                    statusText = 'Upcoming';
+                    icon = '<i class="fas fa-clock text-blue-400"></i>';
+                }
+
+                // Priority color mapping
+                let priorityColor = 'text-gray-600';
+                if (task.priority === 'high') priorityColor = 'text-red-600';
+                else if (task.priority === 'medium') priorityColor = 'text-orange-600';
+                else if (task.priority === 'low') priorityColor = 'text-green-600';
+
+
+                const taskElement = document.createElement('div');
+                taskElement.className = `task-item p-4 border-l-4 rounded-lg shadow-sm flex items-center justify-between transition duration-300 ease-in-out ${statusClass} ${task.completed ? 'opacity-70 line-through' : ''}`;
+                taskElement.dataset.id = task.id;
+
+                taskElement.innerHTML = `
+                    <div class="flex-1 min-w-0 mr-4">
+                        <div class="flex items-center mb-1">
+                            <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 rounded-md mr-3 cursor-pointer" ${task.completed ? 'checked' : ''} onchange="toggleTaskCompleted('${task.id}')">
+                            <span class="text-lg font-semibold text-gray-800 truncate">${task.name}</span>
+                        </div>
+                        <p class="text-sm text-gray-600 mb-1">
+                            <span class="font-medium ${priorityColor}">${task.priority.charAt(0).toUpperCase() + task.priority.slice(1)} Priority</span>
+                            ${task.category ? `<span class="mx-2 text-gray-400">•</span> <span class="text-gray-700">${task.category}</span>` : ''}
+                        </p>
+                        <p class="text-xs text-gray-500 flex items-center">
+                            ${icon} <span class="ml-1">${statusText}</span> <span class="mx-1 text-gray-400">•</span> Due: ${formatDate(task.deadline)}
+                        </p>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button onclick="editTask('${task.id}')"
+                                class="p-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full transition duration-200 transform hover:scale-110"
+                                title="Edit Task">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button onclick="deleteTask('${task.id}')"
+                                class="p-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-full transition duration-200 transform hover:scale-110"
+                                title="Delete Task">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                `;
+                taskListDiv.appendChild(taskElement);
+            });
+        }
+
+        // --- Sorting Functions ---
+
+        /**
+         * Sorts tasks by priority (High, Medium, Low).
+         */
+        function sortByPriority() {
+            const priorityOrder = { 'high': 1, 'medium': 2, 'low': 3 };
+            tasks.sort((a, b) => {
+                // Completed tasks always go to the bottom
+                if (a.completed && !b.completed) return 1;
+                if (!a.completed && b.completed) return -1;
+                return priorityOrder[a.priority] - priorityOrder[b.priority];
+            });
+            saveTasks();
+        }
+
+        /**
+         * Sorts tasks by category alphabetically.
+         */
+        function sortByCategory() {
+            tasks.sort((a, b) => {
+                // Completed tasks always go to the bottom
+                if (a.completed && !b.completed) return 1;
+                if (!a.completed && b.completed) return -1;
+                const categoryA = a.category.toLowerCase() || '';
+                const categoryB = b.category.toLowerCase() || '';
+                return categoryA.localeCompare(categoryB);
+            });
+            saveTasks();
+        }
+
+        /**
+         * Sorts tasks by due date, earliest first.
+         */
+        function sortByDueDate() {
+            tasks.sort((a, b) => {
+                // Completed tasks always go to the bottom
+                if (a.completed && !b.completed) return 1;
+                if (!a.completed && b.completed) return -1;
+                return a.deadline.getTime() - b.deadline.getTime();
+            });
+            saveTasks();
+        }
+
+        // --- Deadline Checker and Notifications ---
+
+        /**
+         * Checks task deadlines and triggers notifications.
+         * Runs periodically via setInterval.
+         */
+        function checkDeadlines() {
+            const now = new Date();
+            const notificationThreshold = 5 * 60 * 1000; // Notify 5 minutes before or when overdue
+
+            tasks.forEach(task => {
+                if (task.completed || task.notified) {
+                    return; // Skip completed or already notified tasks
+                }
+
+                const timeLeft = task.deadline.getTime() - now.getTime();
+
+                // If task is due within threshold or already overdue
+                if (timeLeft <= notificationThreshold) {
+                    let notificationBody = '';
+                    if (timeLeft > 0) {
+                        notificationBody = `Due in ${Math.ceil(timeLeft / (60 * 1000))} minutes.`;
+                    } else {
+                        notificationBody = `This task is overdue by ${Math.floor(Math.abs(timeLeft) / (60 * 1000))} minutes.`;
+                    }
+
+                    showNotification(`Task Reminder: ${task.name}`, {
+                        body: notificationBody,
+                        icon: 'https://placehold.co/64x64/007bff/ffffff?text=TD', // Placeholder icon
+                        vibrate: [200, 100, 200]
+                    });
+
+                    // Mark task as notified to prevent repeated notifications
+                    task.notified = true;
+                    // Save immediately after notification to persist the 'notified' state
+                    localStorage.setItem('smartTodoTasks', JSON.stringify(tasks));
+                }
+            });
+            renderTasks(); // Re-render to update "Due Soon" highlights
+        }
+
+        // --- Event Listeners and Initialization ---
+
+        window.onload = () => {
+            loadTasks(); // Load tasks from local storage
+            renderTasks(); // Render them to the UI
+            requestNotificationPermission(); // Request notification permission
+
+            // Start checking deadlines every minute
+            deadlineCheckInterval = setInterval(checkDeadlines, 60 * 1000); // Every 1 minute
+        };
+
+        // Event Listeners
+        taskForm.addEventListener('submit', handleTaskFormSubmit);
+        sortByPriorityButton.addEventListener('click', sortByPriority);
+        sortByCategoryButton.addEventListener('click', sortByCategory);
+        sortByDueDateButton.addEventListener('click', sortByDueDate);
+
+        // Initial check for notification permission on page load
+        // This will display the prompt if permission is not yet determined
+        requestNotificationPermission();
+    </script>
+</body>
+</html>

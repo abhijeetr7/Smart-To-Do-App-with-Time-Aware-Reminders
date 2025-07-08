@@ -1,6 +1,7 @@
 # Smart-To-Do-App-with-Time-Aware-Reminders
 
 What's Included:
+
 Responsive UI: Built with Tailwind CSS, the app is designed to look good on various screen sizes, from mobile to desktop.
 
 Task Management: You can add new tasks with a name, deadline (date and time), priority (High, Medium, Low), and an optional category. You can also edit existing tasks and delete them.
@@ -16,6 +17,7 @@ Sorting Options: You can sort your tasks by priority, category (alphabetically),
 Local Storage: All your tasks are automatically saved to your browser's local storage, so they persist even if you close and reopen the browser tab.
 
 How to Use:
+
 Add a Task: Fill in the "Task Name," "Deadline," "Priority," and "Category" fields, then click "Add Task."
 
 Edit a Task: Click the "Edit" (pencil) icon next to a task. The form will pre-fill with the task's details. Make your changes and click "Update Task."
